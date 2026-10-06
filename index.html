@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <meta name="description" content="Eine persönliche Startseite über Interessen, Stationen und Inspiration.">
+  <title>Dein Name — persönliche Startseite</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5f4ef;
+      --surface: #fffefa;
+      --ink: #202b28;
+      --muted: #59645f;
+      --line: #d9ddd6;
+      --accent: #176b58;
+      --accent-dark: #105342;
+      --soft: #e5eee8;
+      --serif: Georgia, "Times New Roman", serif;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    a:focus-visible {
+      outline: 3px solid #b15a25;
+      outline-offset: 4px;
+      border-radius: 3px;
+    }
+
+    .page {
+      width: min(100% - 2.5rem, 1100px);
+      margin-inline: auto;
+    }
+
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      padding-block: 1.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .wordmark {
+      color: var(--accent-dark);
+      font-size: 0.9rem;
+      font-weight: 750;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+
+    .site-header nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.4rem;
+    }
+
+    .site-header nav a {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.25em;
+    }
+
+    .site-header nav a:hover {
+      color: var(--accent-dark);
+    }
+
+    main {
+      padding-bottom: 5rem;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.7fr);
+      align-items: center;
+      gap: clamp(2rem, 7vw, 6rem);
+      padding-block: clamp(4rem, 10vw, 8rem);
+    }
+
+    .eyebrow,
+    .section-label {
+      margin: 0 0 0.8rem;
+      color: var(--accent-dark);
+      font-size: 0.76rem;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1,
+    h2 {
+      font-family: var(--serif);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 1.12;
+    }
+
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.5rem;
+      font-size: clamp(3rem, 7vw, 5.8rem);
+    }
+
+    .intro-copy > p:not(.eyebrow) {
+      max-width: 58ch;
+      margin-bottom: 0.85rem;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.5vw, 1.12rem);
+    }
+
+    .portrait {
+      width: min(100%, 310px);
+      justify-self: end;
+      margin: 0;
+    }
+
+    .portrait img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      border-radius: 48% 48% 8px 8px;
+      background: var(--soft);
+      object-fit: cover;
+    }
+
+    figcaption {
+      margin-top: 0.7rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .section {
+      padding-block: clamp(3.5rem, 8vw, 6rem);
+      border-top: 1px solid var(--line);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 0;
+      font-size: clamp(2.1rem, 4vw, 3.2rem);
+    }
+
+    .section-note {
+      max-width: 34ch;
+      margin-bottom: 0.2rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th,
+    td {
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--accent-dark);
+      font-size: 0.76rem;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    td {
+      color: var(--muted);
+    }
+
+    td:nth-child(2) {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      text-decoration: none;
+      transition: border-color 160ms ease, transform 160ms ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #9caea3;
+    }
+
+    .card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: var(--soft);
+      object-fit: cover;
+    }
+
+    .card-copy {
+      padding: 1.15rem 1.2rem 1.35rem;
+    }
+
+    .card h3 {
+      margin-bottom: 0.35rem;
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+    .card p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .card-link {
+      display: inline-block;
+      margin-top: 0.9rem;
+      color: var(--accent-dark);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .site-footer {
+      padding-block: 1.5rem 2.5rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 700px) {
+      .intro {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        padding-block: 4rem;
+      }
+
+      .portrait {
+        width: min(70%, 260px);
+        justify-self: start;
+      }
+
+      .section-heading {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .gallery {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        display: grid;
+        grid-template-columns: minmax(110px, 0.8fr) 1.2fr;
+      }
+
+      .card img {
+        height: 100%;
+        aspect-ratio: auto;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .page {
+        width: min(100% - 1.5rem, 1100px);
+      }
+
+      .site-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.7rem;
+      }
+
+      .site-header nav {
+        gap: 1rem;
+      }
+
+      th,
+      td {
+        padding: 0.8rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="site-header">
+      <a class="wordmark" href="#start">About Me</a>
+      <nav aria-label="Hauptnavigation">
+        <a href="#stationen">Stationen</a>
+        <a href="#entdeckungen">Entdeckungen</a>
+      </nav>
+    </header>
+
+    <main id="start">
+      <section class="intro" aria-labelledby="intro-title">
+        <div class="intro-copy">
+          <p class="eyebrow">Herzlich Willkommen</p>
+          <h1 id="intro-title">Hallo, ich bin Charlotte.</h1>
+          <p>Mich interessieren die Geschichten hinter Orten und Landschaften. Ich studiere Geoinformatik und Vermessung und beschäftige mich besonders gern mit Kartographie und räumlicher Analyse.</p>
+          <p>Hier sammle ich ein paar Stationen meines Weges und Dinge, die mich inspirieren. Schön, dass du vorbeischaust.</p>
+        </div>
+        <figure class="portrait">
+          <img src="assets/me.jpg" alt="Porträt von Charlotte">
+          <figcaption>This is me.</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" id="stationen" aria-labelledby="stationen-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Ein kurzer Rückblick</p>
+            <h2 id="stationen-title">Sechs Stationen</h2>
+          </div>
+          <p class="section-note">Ersetze die Platzhalter durch deine eigenen Etappen, Orte und Stichworte.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Jahr</th>
+                <th scope="col">Station</th>
+                <th scope="col">Ort</th>
+                <th scope="col">Stichwort</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>20XX</td><td>Ein Anfang</td><td>[Ort]</td><td>Neugier</td></tr>
+              <tr><td>20XX</td><td>Neue Perspektiven</td><td>[Ort]</td><td>Entdecken</td></tr>
+              <tr><td>20XX</td><td>Studium oder Ausbildung</td><td>[Ort]</td><td>Grundlagen</td></tr>
+              <tr><td>20XX</td><td>Erstes eigenes Projekt</td><td>[Ort]</td><td>Ausprobieren</td></tr>
+              <tr><td>20XX</td><td>Zusammenarbeit</td><td>[Ort]</td><td>Austausch</td></tr>
+              <tr><td>Heute</td><td>Der nächste Schritt</td><td>[Ort]</td><td>Weiterdenken</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="entdeckungen" aria-labelledby="entdeckungen-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Zum Weiterklicken</p>
+            <h2 id="entdeckungen-title">Drei Entdeckungen</h2>
+          </div>
+          <p class="section-note">Orte, Ideen und Werkzeuge, zu denen ich gern zurückkehre.</p>
+        </div>
+        <div class="gallery">
+          <a class="card" href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer" aria-label="OpenStreetMap öffnen (externer Link)">
+            <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Weite Landschaft im warmen Abendlicht" loading="lazy">
+            <div class="card-copy">
+              <h3>Orte lesen</h3>
+              <p>Karten erzählen, wie wir unsere Welt sehen und gestalten.</p>
+              <span class="card-link">OpenStreetMap ↗</span>
+            </div>
+          </a>
+          <a class="card" href="https://www.nationalgeographic.com/" target="_blank" rel="noopener noreferrer" aria-label="National Geographic öffnen (externer Link)">
+            <img src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Bergsee und Landschaft mit Spiegelung" loading="lazy">
+            <div class="card-copy">
+              <h3>Draußen sein</h3>
+              <p>Neue Perspektiven finden — am liebsten Schritt für Schritt.</p>
+              <span class="card-link">National Geographic ↗</span>
+            </div>
+          </a>
+          <a class="card" href="https://www.wikimedia.org/" target="_blank" rel="noopener noreferrer" aria-label="Wikimedia öffnen (externer Link)">
+            <img src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Bücher und Notizen auf einem Tisch" loading="lazy">
+            <div class="card-copy">
+              <h3>Wissen teilen</h3>
+              <p>Gute Ideen werden besser, wenn viele daran mitarbeiten.</p>
+              <span class="card-link">Wikimedia ↗</span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Mit Ruhe und Neugier gestaltet · <a href="mailto:hallo@example.com">Kontakt</a></p>
+    </footer>
+  </div>
+</body>
+</html>
