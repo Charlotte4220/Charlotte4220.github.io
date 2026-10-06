@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f4ef">
   <meta name="description" content="Eine persönliche Startseite über Interessen, Stationen und Inspiration.">
-  <title>Dein Name — persönliche Startseite</title>
+  <title>Alles über Charlotte</title>
   <style>
     :root {
       color-scheme: light;
@@ -14,8 +14,8 @@
       --ink: #202b28;
       --muted: #59645f;
       --line: #d9ddd6;
-      --accent: #176b58;
-      --accent-dark: #105342;
+      --accent: #20b581ff;
+      --accent-dark: #126b4d;
       --soft: #e5eee8;
       --serif: Georgia, "Times New Roman", serif;
       --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -37,7 +37,7 @@
       color: var(--ink);
       font-family: var(--sans);
       font-size: 1rem;
-      line-height: 1.65;
+      line-height: 1.75;
     }
 
     a {
@@ -59,8 +59,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1.5rem;
-      padding-block: 1.5rem;
+      gap: 1.75rem;
+      padding-block: 1.75rem;
       border-bottom: 1px solid var(--line);
     }
 
@@ -98,13 +98,13 @@
       display: grid;
       grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.7fr);
       align-items: center;
-      gap: clamp(2rem, 7vw, 6rem);
-      padding-block: clamp(4rem, 10vw, 8rem);
+      gap: clamp(2.5rem, 8vw, 6.5rem);
+      padding-block: clamp(4.5rem, 11vw, 8.5rem);
     }
 
     .eyebrow,
     .section-label {
-      margin: 0 0 0.8rem;
+      margin: 0 0 1rem;
       color: var(--accent-dark);
       font-size: 0.76rem;
       font-weight: 750;
@@ -135,7 +135,7 @@
 
     .intro-copy > p:not(.eyebrow) {
       max-width: 58ch;
-      margin-bottom: 0.85rem;
+      margin-bottom: 1.15rem;
       color: var(--muted);
       font-size: clamp(1rem, 1.5vw, 1.12rem);
     }
@@ -162,7 +162,7 @@
     }
 
     .section {
-      padding-block: clamp(3.5rem, 8vw, 6rem);
+      padding-block: clamp(4rem, 9vw, 6.5rem);
       border-top: 1px solid var(--line);
     }
 
@@ -170,8 +170,8 @@
       display: flex;
       align-items: end;
       justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 2rem;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
     }
 
     .section-heading h2 {
@@ -189,7 +189,7 @@
     .table-wrap {
       overflow-x: auto;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 14px;
       background: var(--surface);
     }
 
@@ -201,7 +201,7 @@
 
     th,
     td {
-      padding: 1rem 1.2rem;
+      padding: 1.15rem 1.35rem;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
     }
@@ -218,6 +218,14 @@
       color: var(--muted);
     }
 
+    tbody tr {
+      transition: background-color 160ms ease;
+    }
+
+    tbody tr:hover {
+      background: #e8f6f0;
+    }
+
     td:nth-child(2) {
       color: var(--ink);
       font-weight: 650;
@@ -230,21 +238,23 @@
     .gallery {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1.25rem;
+      gap: 1.5rem;
     }
 
     .card {
       overflow: hidden;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 16px;
       background: var(--surface);
       text-decoration: none;
-      transition: border-color 160ms ease, transform 160ms ease;
+      box-shadow: 0 5px 18px rgb(32 43 40 / 8%);
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
     }
 
     .card:hover {
       transform: translateY(-3px);
       border-color: #9caea3;
+      box-shadow: 0 12px 28px rgb(32 43 40 / 14%);
     }
 
     .card img {
@@ -256,7 +266,7 @@
     }
 
     .card-copy {
-      padding: 1.15rem 1.2rem 1.35rem;
+      padding: 1.4rem 1.45rem 1.6rem;
     }
 
     .card h3 {
@@ -288,11 +298,11 @@
       font-size: 0.85rem;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 720px) {
       .intro {
         grid-template-columns: 1fr;
-        gap: 2rem;
-        padding-block: 4rem;
+        gap: 2.5rem;
+        padding-block: 4.5rem;
       }
 
       .portrait {
@@ -384,7 +394,7 @@
             <p class="section-label">Ein kurzer Rückblick</p>
             <h2 id="stationen-title">Sechs Stationen</h2>
           </div>
-          <p class="section-note">Ersetze die Platzhalter durch deine eigenen Etappen, Orte und Stichworte.</p>
+    
         </div>
         <div class="table-wrap">
           <table>
@@ -397,12 +407,12 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td>20XX</td><td>Ein Anfang</td><td>[Ort]</td><td>Neugier</td></tr>
-              <tr><td>20XX</td><td>Neue Perspektiven</td><td>[Ort]</td><td>Entdecken</td></tr>
-              <tr><td>20XX</td><td>Studium oder Ausbildung</td><td>[Ort]</td><td>Grundlagen</td></tr>
-              <tr><td>20XX</td><td>Erstes eigenes Projekt</td><td>[Ort]</td><td>Ausprobieren</td></tr>
-              <tr><td>20XX</td><td>Zusammenarbeit</td><td>[Ort]</td><td>Austausch</td></tr>
-              <tr><td>Heute</td><td>Der nächste Schritt</td><td>[Ort]</td><td>Weiterdenken</td></tr>
+              <tr><td>2020</td><td>Ein Anfang</td><td>München</td><td>Neugier</td></tr>
+              <tr><td>2021</td><td>Neue Perspektiven</td><td>Innsbruck</td><td>Entdecken</td></tr>
+              <tr><td>2024</td><td>Studium oder Ausbildung</td><td>New York</td><td>Grundlagen</td></tr>
+              <tr><td>2025</td><td>Erstes eigenes Projekt</td><td>London</td><td>Ausprobieren</td></tr>
+              <tr><td>2026</td><td>Zusammenarbeit</td><td>Hamburg</td><td>Austausch</td></tr>
+              <tr><td>Heute</td><td>Der nächste Schritt</td><td>Mainz</td><td>Weiterdenken</td></tr>
             </tbody>
           </table>
         </div>
