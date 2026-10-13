@@ -1,23 +1,31 @@
 [
   {
     "title": "Meine Webseite entwickelt sich weiter",
-    "date": "2026-10-13",
-    "description": "Beispielmeldung: Ich überarbeite mein persönliches Portfolio und ergänze neue Bereiche, damit meine Interessen und Arbeiten übersichtlich präsentiert werden.",
-    "image": "assets/news-webseite.svg",
+    "date": "2026-10-15",
+    "description": "Ich überarbeite mein persönliches Portfolio und ergänze neue Bereiche, damit meine Interessen und Arbeiten übersichtlich präsentiert werden.",
+    "image": "assets/news-webseite.png",
     "imageAlt": "Lokaler Bildplatzhalter für die Weiterentwicklung der Portfolio-Webseite"
   },
   {
     "title": "Eine interaktive Web-Map entsteht",
     "date": "2026-10-01",
-    "description": "Beispielmeldung: Ich plane eine Webkarte, die interessante Orte und räumliche Informationen interaktiv erlebbar macht. Als nächstes stehen die Auswahl geeigneter Daten und die Gestaltung der Kartenebenen an.",
-    "image": "assets/news-webmap.svg",
+    "description": "Ich plane eine Webkarte, die interessante Orte und räumliche Informationen interaktiv erlebbar macht. Als nächstes stehen die Auswahl geeigneter Daten und die Gestaltung der Kartenebenen an.",
+    "image": "assets/news-webmap.png",
     "imageAlt": "Lokaler Bildplatzhalter mit einer stilisierten interaktiven Karte"
   },
   {
     "title": "Neue Web-Projekte im Portfolio",
     "date": "2026-09-12",
-    "description": "Beispielmeldung: Ich erweitere mein Portfolio um Projekte aus Kartographie, Fernerkundung und Vermessung. Die Projektseiten sollen Ergebnisse, Vorgehensweise und verwendete Geodaten anschaulich dokumentieren.",
-    "image": "assets/news-portfolio.svg",
+    "description": "Ich erweitere mein Portfolio um Projekte aus Kartographie, Fernerkundung und Vermessung. Die Projektseiten sollen Ergebnisse, Vorgehensweise und verwendete Geodaten anschaulich dokumentieren.",
+    "image": "assets/news-portfolio.png",
     "imageAlt": "Lokaler Bildplatzhalter für neue Geoinformatik-Projekte im Portfolio"
+  },
+
+  {
+    "title": "Ein neuer Anfang für mein Portfolio",
+    "date": "2026-08-10",
+    "description": "Herzlich Willkommen zu meinem Portfolio! Ich habe die Webseite neu gestaltet, um meine Arbeiten und Interessen im Bereich Geoinformatik ansprechend zu präsentieren. In den kommenden Wochen werde ich weitere Projekte und Inhalte hinzufügen.",
+    "image": "assets/portfolio.png",
+    "imageAlt": "Lokaler Bildplatzhalter für mein Portfolio"
   }
 ]
