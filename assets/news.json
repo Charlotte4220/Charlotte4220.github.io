@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Meine Webseite entwickelt sich weiter",
+    "date": "2026-10-13",
+    "description": "Beispielmeldung: Ich überarbeite mein persönliches Portfolio und ergänze neue Bereiche, damit meine Interessen und Arbeiten übersichtlich präsentiert werden.",
+    "image": "assets/news-webseite.svg",
+    "imageAlt": "Lokaler Bildplatzhalter für die Weiterentwicklung der Portfolio-Webseite"
+  },
+  {
+    "title": "Eine interaktive Web-Map entsteht",
+    "date": "2026-10-01",
+    "description": "Beispielmeldung: Ich plane eine Webkarte, die interessante Orte und räumliche Informationen interaktiv erlebbar macht. Als nächstes stehen die Auswahl geeigneter Daten und die Gestaltung der Kartenebenen an.",
+    "image": "assets/news-webmap.svg",
+    "imageAlt": "Lokaler Bildplatzhalter mit einer stilisierten interaktiven Karte"
+  },
+  {
+    "title": "Neue Web-Projekte im Portfolio",
+    "date": "2026-09-12",
+    "description": "Beispielmeldung: Ich erweitere mein Portfolio um Projekte aus Kartographie, Fernerkundung und Vermessung. Die Projektseiten sollen Ergebnisse, Vorgehensweise und verwendete Geodaten anschaulich dokumentieren.",
+    "image": "assets/news-portfolio.svg",
+    "imageAlt": "Lokaler Bildplatzhalter für neue Geoinformatik-Projekte im Portfolio"
+  }
+]
