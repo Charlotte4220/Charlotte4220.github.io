@@ -1,58 +1,68 @@
 <!doctype html>
 <html lang="de">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f7fc">
   <meta name="description" content="Eine persönliche Startseite über Interessen, Stationen und Inspiration.">
+
   <title>Alles über Charlotte</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Widgets/widgets.css">
+  <script
+    src="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Cesium.js"
+    defer>
+  </script>
+
   <script>
     (() => {
-      // Der Schlüssel identifiziert die bevorzugte Darstellung im localStorage.
       const storageKey = "charlotte-color-theme";
       let theme;
 
-      // Die gespeicherte Wahl hat Vorrang; falls Speichern nicht erlaubt ist,
-      // wird die Systemdarstellung verwendet.
       try {
         theme = localStorage.getItem(storageKey);
       } catch (error) {
         console.warn("Die gespeicherte Darstellung konnte nicht geladen werden.", error);
       }
 
-      // Unbekannte oder noch nicht gespeicherte Werte folgen dem Gerätemodus.
       if (theme !== "light" && theme !== "dark") {
         theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       }
 
-      // Das Attribut auf <html> aktiviert die passenden CSS-Farbvariablen.
       document.documentElement.dataset.theme = theme;
 
-      // Erst nach dem Aufbau des HTML werden Buttons, Tabs und News-Container gesucht.
       window.addEventListener("DOMContentLoaded", () => {
         const toggle = document.querySelector(".theme-toggle");
         const icon = toggle.querySelector(".theme-toggle-icon");
         const themeColor = document.querySelector('meta[name="theme-color"]');
         const tabs = [...document.querySelectorAll('[role="tab"]')];
-        // Die Reihenfolge der Panels entspricht der Reihenfolge der Tab-Buttons.
         const panels = tabs.map(tab => document.getElementById(tab.getAttribute("aria-controls")));
         const newsContainer = document.querySelector("#news-list");
+        const cesiumStatus = document.querySelector("#cesium-status");
+        let cesiumInitialized = false;
 
-        // Hält Icon, barrierefreie Beschriftung und Browserleisten-Farbe synchron.
         const updateToggle = () => {
           const isDark = document.documentElement.dataset.theme === "dark";
           const nextTheme = isDark ? "light" : "dark";
+
           icon.textContent = isDark ? "☀️" : "🌙";
-          toggle.setAttribute("aria-label", `${nextTheme === "dark" ? "Dunkelmodus" : "Hellmodus"} aktivieren`);
+
+          toggle.setAttribute(
+            "aria-label",
+            `${nextTheme === "dark" ? "Dunkelmodus" : "Hellmodus"} aktivieren`
+          );
+
           toggle.title = `${nextTheme === "dark" ? "Dunkelmodus" : "Hellmodus"} aktivieren`;
           themeColor.content = isDark ? "#0d1728" : "#f3f7fc";
         };
 
-        // Zeigt genau ein Panel und markiert den passenden Tab für Assistenztechnik.
-        // Beim Wechsel per Tastatur wird der Fokus auf den neuen Tab gesetzt.
         const activateTab = (index, moveFocus = false) => {
           tabs.forEach((tab, tabIndex) => {
             const isActive = tabIndex === index;
+
             tab.setAttribute("aria-selected", String(isActive));
             tab.tabIndex = isActive ? 0 : -1;
             panels[tabIndex].hidden = !isActive;
@@ -61,61 +71,142 @@
           if (moveFocus) {
             tabs[index].focus();
           }
+
+          if (panels[index].id === "panel-webkarten") {
+            initializeCesiumMap();
+          }
         };
 
-        // Liest die Beiträge aus der JSON-Datei, sortiert sie und erzeugt Karten.
+        const initializeCesiumMap = async () => {
+          if (cesiumInitialized) {
+            return;
+          }
+
+          cesiumInitialized = true;
+          cesiumStatus.textContent = "3D-Gebäudedaten werden geladen …";
+
+          try {
+            if (!window.Cesium) {
+              throw new Error("Die Cesium-Bibliothek konnte nicht geladen werden.");
+            }
+
+            const viewer = new Cesium.Viewer("cesium-container", {
+              animation: false,
+              baseLayer: false,
+              baseLayerPicker: false,
+              geocoder: false,
+              homeButton: false,
+              sceneModePicker: false,
+              navigationHelpButton: false,
+              timeline: false,
+              fullscreenButton: false,
+              infoBox: false,
+              selectionIndicator: false,
+              shadows: false
+            });
+
+            const imagery = new Cesium.WebMapServiceImageryProvider({
+              url: "https://sgx.geodatenzentrum.de/wms_basemapde",
+              layers: "de_basemapde_web_raster_farbe",
+              parameters: {
+                format: "image/png",
+                transparent: false,
+                version: "1.3.0"
+              },
+              credit: new Cesium.Credit(
+                '<a href="https://basemap.de/produkte-und-dienste/3d/" target="_blank" rel="noopener noreferrer">basemap.de / BKG</a>',
+                true
+              )
+            });
+            viewer.imageryLayers.addImageryProvider(imagery);
+
+            const tileset = await Cesium.Cesium3DTileset.fromUrl(
+              "https://sgx.geodatenzentrum.de/gdz_basemapde_3d_gebaeude/lod2_4326_null.json",
+              { showOutline: false }
+            );
+            viewer.scene.primitives.add(tileset);
+            tileset.style = new Cesium.Cesium3DTileStyle({
+              color: {
+                conditions: [
+                  ["${surface} === 'wall'", "color('#f2f2f2')"],
+                  ["${surface} === 'roof'", "color('#ff5c4d')"],
+                  ["${surface} === 'bridge'", "color('#999999')"]
+                ]
+              }
+            });
+
+            viewer.camera.flyTo({
+              destination: Cesium.Cartesian3.fromDegrees(8.247, 49.992, 1200),
+              orientation: {
+                heading: Cesium.Math.toRadians(0),
+                pitch: Cesium.Math.toRadians(-45),
+                roll: 0
+              }
+            });
+            cesiumStatus.textContent = "3D-Gebäudekarte bereit.";
+          } catch (error) {
+            console.error("Die Cesium-3D-Gebäudekarte konnte nicht geladen werden.", error);
+            cesiumStatus.textContent =
+              "Die 3D-Gebäudekarte konnte nicht geladen werden. Bitte prüfe deine Internetverbindung und lade die Seite erneut.";
+          }
+        };
+
         const loadNews = async () => {
           try {
             const response = await fetch("assets/news.json");
-            // fetch lehnt HTTP-Fehler nicht automatisch ab; Status deshalb prüfen.
+
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}`);
             }
 
             const newsItems = await response.json();
-            // Die Datei muss ein Array sein, damit Beiträge einzeln geprüft werden können.
+
             if (!Array.isArray(newsItems)) {
               throw new Error("Die News-Datei muss eine Liste enthalten.");
             }
 
-            // Ungültige Meldungen werden einzeln übersprungen, nicht die ganze Liste.
-            // Das Datum muss ein wirklich gültiges Datum im ISO-Format YYYY-MM-DD sein.
             const validNews = newsItems.filter(item => {
               const isValidDate = typeof item?.date === "string" &&
                 /^\d{4}-\d{2}-\d{2}$/.test(item.date) &&
                 !Number.isNaN(Date.parse(`${item.date}T00:00:00Z`)) &&
                 new Date(`${item.date}T00:00:00Z`).toISOString().slice(0, 10) === item.date;
-              const isValid = typeof item?.title === "string" && item.title.trim() !== "" &&
+
+              const isValid =
+                typeof item?.title === "string" &&
+                item.title.trim() !== "" &&
                 isValidDate &&
-                typeof item.description === "string" && item.description.trim() !== "" &&
-                typeof item.image === "string" && item.image.trim() !== "";
+                typeof item.description === "string" &&
+                item.description.trim() !== "" &&
+                typeof item.image === "string" &&
+                item.image.trim() !== "";
 
               if (!isValid) {
-                console.warn("Ein News-Beitrag wurde wegen ungültiger oder fehlender Pflichtfelder übersprungen.", item);
+                console.warn("Ungültiger News-Beitrag:", item);
               }
 
               return isValid;
-            // ISO-Datumsangaben lassen sich als Text chronologisch absteigend sortieren.
+
             }).sort((first, second) => second.date.localeCompare(first.date));
 
-            // Das Fragment sammelt Karten zunächst außerhalb des sichtbaren Dokuments.
             const fragment = document.createDocumentFragment();
+
             validNews.forEach(item => {
               const article = document.createElement("article");
               article.className = "content-card news-card";
 
-              // Das Bild erhält Alternativtext und wird erst bei Bedarf geladen.
               const image = document.createElement("img");
               image.src = item.image;
-              image.alt = typeof item.imageAlt === "string" ? item.imageAlt : `Bild zu ${item.title}`;
+              image.alt = typeof item.imageAlt === "string"
+                ? item.imageAlt
+                : `Bild zu ${item.title}`;
+
               image.loading = "lazy";
-              // Bei einem defekten Bild wird zuerst eine lokale Illustration versucht.
+
               image.onerror = () => {
                 image.onerror = null;
                 image.src = "assets/news-webmap.svg";
-                image.alt = "Lokaler Bildplatzhalter; Bild kann später ersetzt werden";
-                // Falls auch die Ersatzdatei nicht erreichbar ist, bleibt ein
-                // beschrifteter Platzhalter statt eines defekten Bildsymbols sichtbar.
+                image.alt = "Lokaler Bildplatzhalter";
+
                 image.onerror = () => {
                   const placeholder = document.createElement("div");
                   placeholder.className = "news-image-placeholder";
@@ -125,23 +216,24 @@
                   image.replaceWith(placeholder);
                 };
               };
+
               article.append(image);
 
               const content = document.createElement("div");
               content.className = "news-card-copy";
 
-              // Das machine-readable Datum bleibt ISO-formatiert; angezeigt wird
-              // eine für deutschsprachige Besucher gut lesbare Datumsform.
               const date = document.createElement("time");
               date.className = "section-label";
               date.dateTime = item.date;
-              date.textContent = new Date(`${item.date}T00:00:00`).toLocaleDateString("de-DE", {
+
+              date.textContent = new Date(
+                `${item.date}T00:00:00`
+              ).toLocaleDateString("de-DE", {
                 day: "numeric",
                 month: "long",
                 year: "numeric"
               });
 
-              // textContent fügt JSON-Texte sicher als Text ein, nicht als HTML.
               const title = document.createElement("h3");
               title.textContent = item.title;
 
@@ -153,7 +245,6 @@
               fragment.append(article);
             });
 
-            // Auch eine gültige, aber leere Datei erhält eine verständliche Meldung.
             if (validNews.length === 0) {
               const emptyMessage = document.createElement("p");
               emptyMessage.textContent = "Aktuell sind keine gültigen News verfügbar.";
@@ -163,22 +254,25 @@
 
             newsContainer.replaceChildren(fragment);
             newsContainer.setAttribute("aria-busy", "false");
+
           } catch (error) {
-            // Lade- und JSON-Fehler werden protokolliert und für Besucher erklärt.
-            console.error("Die News konnten nicht aus assets/news.json geladen werden.", error);
-            newsContainer.textContent = "Die News konnten gerade nicht geladen werden. Bitte versuche es später erneut.";
+            console.error("Die News konnten nicht geladen werden.", error);
+
+            newsContainer.textContent =
+              "Die News konnten gerade nicht geladen werden. Bitte versuche es später erneut.";
+
             newsContainer.classList.add("news-error");
             newsContainer.setAttribute("aria-busy", "false");
           }
         };
 
-        // Mausklicks wechseln den Tab, ohne die Seite oder URL neu zu laden.
         tabs.forEach((tab, index) => {
+
           tab.addEventListener("click", () => activateTab(index));
+
           tab.addEventListener("keydown", event => {
             let nextIndex;
 
-            // Pfeiltasten durchlaufen Tabs; Home/End springen an den Anfang/das Ende.
             if (event.key === "ArrowRight") {
               nextIndex = (index + 1) % tabs.length;
             } else if (event.key === "ArrowLeft") {
@@ -196,30 +290,34 @@
           });
         });
 
-        // Der Theme-Button wechselt das Attribut, speichert die Wahl und aktualisiert
-        // anschließend die passende Beschriftung und das Symbol.
         toggle.addEventListener("click", () => {
-          const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          const nextTheme =
+            document.documentElement.dataset.theme === "dark"
+              ? "light"
+              : "dark";
+
           document.documentElement.dataset.theme = nextTheme;
 
           try {
             localStorage.setItem(storageKey, nextTheme);
           } catch (error) {
-            console.warn("Die Darstellung konnte nicht gespeichert werden.", error);
+            console.warn("Darstellung konnte nicht gespeichert werden.", error);
           }
 
           updateToggle();
         });
 
-        // Beim Start About aktivieren und die News einmal im Hintergrund laden.
         updateToggle();
         activateTab(0);
         loadNews();
       });
     })();
   </script>
+
   <style>
-    /* Zentrale Farbpalette für den hellen Blauton-Modus und gemeinsame Schriftarten. */
+
+    /* Allgemeine Farben */
+
     :root {
       color-scheme: light;
       --paper: #f3f7fc;
@@ -240,7 +338,8 @@
       --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    /* Dieselben Variablen werden im Dunkelmodus durch kontrastreiche Navy-Töne ersetzt. */
+    /* Dunkelmodus */
+
     :root[data-theme="dark"] {
       color-scheme: dark;
       --paper: #0d1728;
@@ -259,7 +358,6 @@
       --focus: #93c5fd;
     }
 
-    /* Einheitliche Box-Berechnung verhindert unerwartete Größen durch Padding/Rahmen. */
     *,
     *::before,
     *::after {
@@ -270,11 +368,14 @@
       scroll-behavior: smooth;
     }
 
-    /* Grundfarben und Typografie der Seite; der Verlauf folgt ebenfalls dem Theme. */
     body {
       margin: 0;
       background: var(--paper);
-      background-image: radial-gradient(ellipse at 8% 0%, var(--ambient), transparent 38%);
+      background-image: radial-gradient(
+        ellipse at 8% 0%,
+        var(--ambient),
+        transparent 38%
+      );
       background-attachment: fixed;
       color: var(--ink);
       font-family: var(--sans);
@@ -283,34 +384,10 @@
       transition: background-color 180ms ease, color 180ms ease;
     }
 
-    .wordmark,
-    .eyebrow,
-    .section-label,
-    .intro-copy > p:not(.eyebrow),
-    figcaption,
-    .section-note,
-    th,
-    td,
-    .card p,
-    .card-link {
-      transition: color 180ms ease;
-    }
-
-    /* Rahmenfarben wechseln sanft mit dem Farbschema. */
-    .site-header,
-    .section {
-      transition: border-color 180ms ease;
-    }
-
-    .site-footer {
-      transition: color 180ms ease, border-color 180ms ease;
-    }
-
     a {
       color: inherit;
     }
 
-    /* Deutlich sichtbarer Tastaturfokus für Links und interaktive Elemente. */
     a:focus-visible {
       outline: 3px solid var(--focus);
       outline-offset: 4px;
@@ -318,13 +395,13 @@
     }
 
     .page {
-      /* Begrenzte Lesebreite auf großen Bildschirmen, flexible Ränder auf kleinen. */
       width: min(100% - 2.5rem, 1100px);
       margin-inline: auto;
     }
 
+    /* Kopfbereich */
+
     .site-header {
-      /* Kopfzeile als hervorgehobene, abgerundete Fläche. */
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -335,18 +412,15 @@
       border-radius: 18px;
       background: var(--surface);
       box-shadow: var(--shadow);
-      transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
     }
 
     .header-actions {
-      /* Tabs und Theme-Umschalter bleiben als gemeinsame Aktionsgruppe ausgerichtet. */
       display: flex;
       align-items: center;
       gap: 1rem;
     }
 
     .wordmark {
-      /* Typografische Kennzeichnung des persönlichen/geografischen Portfolios. */
       color: var(--accent-dark);
       font-size: 0.9rem;
       font-weight: 750;
@@ -355,8 +429,9 @@
       text-transform: uppercase;
     }
 
+    /* Navigation */
+
     .tab-list {
-      /* Äußerer, pillenförmiger Rahmen der drei Bereichs-Tabs. */
       display: flex;
       flex-wrap: wrap;
       gap: 0.35rem;
@@ -364,11 +439,9 @@
       border: 1px solid var(--line);
       border-radius: 999px;
       background: var(--surface);
-      transition: background-color 180ms ease, border-color 180ms ease;
     }
 
     .tab {
-      /* Grundstil aller Tabs; Status und Hover werden darunter ergänzt. */
       min-width: 5rem;
       padding: 0.55rem 1rem;
       border: 0;
@@ -379,29 +452,25 @@
       font: inherit;
       font-size: 0.9rem;
       font-weight: 650;
-      transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+      transition: background-color 180ms ease, color 180ms ease;
     }
 
     .tab:hover {
-      /* Dezente Rückmeldung beim Überfahren eines nicht ausgewählten Tabs. */
       color: var(--ink);
       background: var(--soft);
     }
 
     .tab[aria-selected="true"] {
-      /* Der aktuell sichtbare Bereich wird farblich eindeutig hervorgehoben. */
       background: var(--accent-dark);
       color: var(--surface);
     }
 
     .tab:focus-visible {
-      /* Tastaturfokus bleibt zusätzlich zum aktiven Zustand erkennbar. */
       outline: 3px solid var(--focus);
       outline-offset: 3px;
     }
 
     .theme-toggle {
-      /* Kreisförmiger, touchfreundlicher Button zum Umschalten des Farbschemas. */
       display: inline-grid;
       width: 2.75rem;
       height: 2.75rem;
@@ -414,13 +483,11 @@
       cursor: pointer;
       font: inherit;
       font-size: 1.2rem;
-      line-height: 1;
-      transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, transform 180ms ease;
     }
 
     .theme-toggle:hover {
-      transform: translateY(-1px);
       border-color: var(--accent-dark);
+      transform: translateY(-1px);
     }
 
     .theme-toggle:focus-visible {
@@ -428,23 +495,21 @@
       outline-offset: 3px;
     }
 
+    /* Hauptinhalt */
+
     main {
-      /* Freiraum unter dem Inhalt; Panels selbst werden durch JavaScript gewechselt. */
       padding-bottom: 5rem;
     }
 
-    /* Erzwingt das vollständige Ausblenden inaktiver ARIA-Tab-Panels. */
     [role="tabpanel"][hidden] {
       display: none;
     }
 
     .tab-panel:focus {
-      /* Das Panel ist fokussierbar für Assistenztechnik, erhält aber keinen Doppelrahmen. */
       outline: none;
     }
 
     .intro {
-      /* Einleitung: Text und Porträt nebeneinander, auf kleinen Geräten gestapelt. */
       display: grid;
       grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.7fr);
       align-items: center;
@@ -462,7 +527,6 @@
       text-transform: uppercase;
     }
 
-    /* Einheitliche Grundabstände für Überschriften und Fließtext. */
     h1,
     h2,
     h3,
@@ -472,7 +536,6 @@
 
     h1,
     h2 {
-      /* Serifenschrift und kompakter Zeilenabstand als typografische Hierarchie. */
       font-family: var(--serif);
       font-weight: 500;
       letter-spacing: -0.035em;
@@ -480,14 +543,12 @@
     }
 
     h1 {
-      /* Fluid skalierende Hauptüberschrift mit begrenzter Zeilenlänge. */
       max-width: 12ch;
       margin-bottom: 1.5rem;
       font-size: clamp(3rem, 7vw, 5.8rem);
     }
 
     .intro-copy > p:not(.eyebrow) {
-      /* Lesbare Breite und zurückhaltende Farbe für Einleitungstexte. */
       max-width: 58ch;
       margin-bottom: 1.15rem;
       color: var(--muted);
@@ -495,14 +556,12 @@
     }
 
     .portrait {
-      /* Porträt bleibt im Desktop-Layout rechtsbündig und größenbegrenzt. */
       width: min(100%, 310px);
       justify-self: end;
       margin: 0;
     }
 
     .portrait img {
-      /* Bildausschnitt und Form des Porträts, passend zum Karten-/Rahmenstil. */
       display: block;
       width: 100%;
       aspect-ratio: 4 / 5;
@@ -511,34 +570,24 @@
       background: var(--soft);
       box-shadow: var(--shadow-hover);
       object-fit: cover;
-      transition: border-color 180ms ease, box-shadow 180ms ease;
     }
 
     figcaption {
-      /* Zurückhaltende Bildunterschrift unter dem Porträt. */
       margin-top: 0.7rem;
       color: var(--muted);
       font-size: 0.82rem;
     }
 
     .section {
-      /* Vertikale Gliederung und dezente Trennlinie zwischen About-Inhalten. */
       padding-block: clamp(4rem, 9vw, 6.5rem);
       border-top: 1px solid var(--line);
     }
 
     .tab-panel > .section:first-child {
-      /* Die erste Sektion eines Panels benötigt keine zusätzliche obere Linie. */
       border-top: 0;
     }
 
-    .tab-panel > .intro + .section {
-      /* Nach der About-Einleitung bleibt die Abschnittstrennung sichtbar. */
-      border-top: 1px solid var(--line);
-    }
-
     .section-heading {
-      /* Überschrift und optionale Zusammenfassung bilden eine flexible Zeile. */
       display: flex;
       align-items: end;
       justify-content: space-between;
@@ -547,30 +596,27 @@
     }
 
     .section-heading h2 {
-      /* Abschnittstitel passen sich der verfügbaren Bildschirmbreite an. */
       margin-bottom: 0;
       font-size: clamp(2.1rem, 4vw, 3.2rem);
     }
 
     .section-note {
-      /* Begrenzte Breite für kurze Erläuterungen neben Abschnittstiteln. */
       max-width: 34ch;
       margin-bottom: 0.2rem;
       color: var(--muted);
       font-size: 0.9rem;
     }
 
+    /* Tabelle */
+
     .table-wrap {
-      /* Umhüllt die Stationentabelle und erlaubt bei Bedarf horizontales Scrollen. */
       overflow-x: auto;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: var(--surface);
-      transition: background-color 180ms ease, border-color 180ms ease;
     }
 
     table {
-      /* Tabelle nutzt die verfügbare Breite und richtet Werte links aus. */
       width: 100%;
       border-collapse: collapse;
       text-align: left;
@@ -578,14 +624,12 @@
 
     th,
     td {
-      /* Einheitliche Zellabstände und Trennlinien für bessere Lesbarkeit. */
       padding: 1.15rem 1.35rem;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
     }
 
     th {
-      /* Tabellenkopf erhält die Akzentfarbe und eine kompakte Versalformatierung. */
       color: var(--accent-dark);
       font-size: 0.76rem;
       font-weight: 750;
@@ -594,58 +638,47 @@
     }
 
     td {
-      /* Sekundärtext der Tabellenzeilen nutzt die gedämpfte Textfarbe. */
       color: var(--muted);
     }
 
-    tbody tr {
-      /* Zeilenhintergrund wird beim Hover weich eingeblendet. */
-      transition: background-color 160ms ease;
-    }
-
     tbody tr:hover {
-      /* Heller/dunkler Hover-Ton wird abhängig vom aktiven Theme gesetzt. */
       background: var(--row-hover);
     }
 
     td:nth-child(2) {
-      /* Stationsnamen werden innerhalb jeder Tabellenzeile betont. */
       color: var(--ink);
       font-weight: 650;
     }
 
     tbody tr:last-child td {
-      /* Kein überflüssiger Abschlussstrich am Tabellenende. */
       border-bottom: 0;
     }
 
+    /* Galerie */
+
     .gallery {
-      /* Drei bestehende Entdeckungs-Karten im gleichmäßigen Desktop-Raster. */
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 1.5rem;
     }
 
     .card {
-      /* Link-Karten zeigen eine Vorschau, einen Titel und einen Erklärungstext. */
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 16px;
       background: var(--surface);
       text-decoration: none;
       box-shadow: var(--shadow);
-      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      transition: transform 160ms ease, box-shadow 160ms ease;
     }
 
     .card:hover {
-      /* Kleine Anhebung und stärkere Kontur beim Überfahren mit der Maus. */
       transform: translateY(-3px);
       border-color: var(--card-border-hover);
       box-shadow: var(--shadow-hover);
     }
 
     .card img {
-      /* Einheitlicher Bildausschnitt unabhängig von den Quelldimensionen. */
       display: block;
       width: 100%;
       aspect-ratio: 4 / 3;
@@ -654,12 +687,10 @@
     }
 
     .card-copy {
-      /* Innenabstand für den Text unter den Entdeckungsbildern. */
       padding: 1.4rem 1.45rem 1.6rem;
     }
 
     .card h3 {
-      /* Serifentitel der extern verlinkten Entdeckungskarten. */
       margin-bottom: 0.35rem;
       font-family: var(--serif);
       font-size: 1.45rem;
@@ -668,14 +699,12 @@
     }
 
     .card p {
-      /* Kurzbeschreibung unter dem Kartentitel. */
       margin-bottom: 0;
       color: var(--muted);
       font-size: 0.9rem;
     }
 
     .card-link {
-      /* Akzentuierte Beschriftung innerhalb jeder externen Link-Karte. */
       display: inline-block;
       margin-top: 0.9rem;
       color: var(--accent-dark);
@@ -683,26 +712,24 @@
       font-weight: 700;
     }
 
+    /* News und Projekte */
+
     .content-grid {
-      /* Flexibles Raster: erzeugt so viele Spalten wie in den verfügbaren Platz passen. */
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
       gap: 1.5rem;
     }
 
     .content-card {
-      /* Gemeinsame Oberfläche für dynamische News und Projektkarten. */
       min-width: 0;
       padding: 1.5rem;
       border: 1px solid var(--line);
       border-radius: 16px;
       background: var(--surface);
       box-shadow: var(--shadow);
-      transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 160ms ease;
     }
 
     .content-card h3 {
-      /* Einheitlicher Titelstil in News- und Projektkarten. */
       margin-bottom: 0.5rem;
       font-family: var(--serif);
       font-size: 1.45rem;
@@ -711,25 +738,20 @@
     }
 
     .content-card p {
-      /* Beschreibungstexte der Karten bleiben gegenüber Titeln visuell sekundär. */
       margin-bottom: 0;
       color: var(--muted);
-      transition: color 180ms ease;
     }
 
     .content-card .section-label {
-      /* Mehr Abstand zwischen Datums-/Kategorielabel und Überschrift. */
       margin-bottom: 0.8rem;
     }
 
     .news-card {
-      /* Dynamische News-Karte: Bild und Text füllen gemeinsam eine abgerundete Fläche. */
       padding: 0;
       overflow: hidden;
     }
 
     .news-card > img {
-      /* News-Bilder haben ein festes Seitenverhältnis und werden passend beschnitten. */
       display: block;
       width: 100%;
       aspect-ratio: 16 / 9;
@@ -738,54 +760,25 @@
     }
 
     .news-card-copy {
-      /* Einheitlicher Innenabstand zwischen Datum, Titel und Nachrichtentext. */
       padding: 1.5rem;
     }
 
-    .news-card:hover {
-      /* Dezenter Bewegungseffekt für News-Karten. */
-      transform: translateY(-3px);
-      border-color: var(--card-border-hover);
-      box-shadow: var(--shadow-hover);
-    }
-
     .news-image-placeholder {
-      /* Ersatzelement für den Fall, dass sowohl News-Bild als auch Ersatzbild fehlen. */
       display: grid;
       width: 100%;
       aspect-ratio: 16 / 9;
       place-items: center;
       background: var(--soft);
       color: var(--muted);
-      font-size: 0.9rem;
     }
 
-    .news-error {
-      /* Ladefehlermeldung nimmt im News-Raster die gesamte Zeile ein. */
-      grid-column: 1 / -1;
-      color: var(--muted);
-    }
-
+    .news-error,
     .news-empty {
-      /* Meldung bei einer gültigen, aber leeren News-Liste. */
       grid-column: 1 / -1;
       color: var(--muted);
-    }
-
-    .project-placeholder {
-      /* Gestaltung für einen möglichen grafischen Projekt-Bildplatzhalter. */
-      display: grid;
-      min-height: 150px;
-      margin: -1.5rem -1.5rem 1.25rem;
-      place-items: center;
-      border-radius: 15px 15px 0 0;
-      background: var(--soft);
-      color: var(--accent-dark);
-      font-size: 2rem;
     }
 
     .project-image {
-      /* Vorschaubilder der drei Projektkarten mit einheitlicher Höhe und Beschnitt. */
       display: block;
       width: calc(100% + 3rem);
       height: 180px;
@@ -796,17 +789,67 @@
     }
 
     .placeholder-note {
-      /* Kleine, zurückhaltende Zusatzkennzeichnung innerhalb der Projektkarten. */
       display: inline-block;
       margin-top: 1rem;
       color: var(--muted);
       font-size: 0.85rem;
       font-weight: 700;
-      transition: color 180ms ease;
     }
 
+    /* NEU: Webkarten aus Übung 3 */
+
+    .webmap-list {
+      display: grid;
+      gap: 2rem;
+    }
+
+    .webmap-card {
+      min-width: 0;
+      padding: clamp(1rem, 3vw, 1.6rem);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .webmap-card h3 {
+      margin-bottom: 0.4rem;
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      font-weight: 500;
+    }
+
+    .webmap-card p {
+      color: var(--muted);
+    }
+
+    .webmap-frame {
+      display: block;
+      width: 100%;
+      height: 470px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+    }
+
+    .cesium-map {
+      width: 100%;
+      height: 560px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+    }
+
+    .cesium-status {
+      margin: 0.75rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* Footer */
+
     .site-footer {
-      /* Zusätzlicher unterer Freiraum verhindert Überdeckung durch Fixkontakt-Icons. */
       padding-block: 1.5rem calc(2.5rem + 4rem);
       border-top: 1px solid var(--line);
       color: var(--muted);
@@ -814,10 +857,9 @@
     }
 
     .contact-links {
-      /* Kontakt-Icons bleiben außerhalb des scrollenden Layouts unten rechts fixiert. */
       position: fixed;
-      right: calc(env(safe-area-inset-right, 0px) + 1rem);
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+      right: 1rem;
+      bottom: 1rem;
       z-index: 1000;
       display: flex;
       align-items: center;
@@ -825,7 +867,6 @@
     }
 
     .contact-links a {
-      /* Runde, per Maus und Touch gut erreichbare Schaltflächen für die Kontaktwege. */
       display: grid;
       width: 3rem;
       height: 3rem;
@@ -835,31 +876,23 @@
       background: var(--surface);
       color: var(--accent-dark);
       box-shadow: var(--shadow);
-      transition: transform 160ms ease, color 160ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 160ms ease;
     }
 
     .contact-links a:hover {
-      /* Kleine Anhebung als unmittelbares Feedback beim Hover. */
       transform: translateY(-3px) scale(1.05);
       border-color: var(--accent-dark);
-      box-shadow: var(--shadow-hover);
-    }
-
-    .contact-links a:focus-visible {
-      /* Tastaturfokus für alle drei Social-/Kontakt-Links. */
-      outline: 3px solid var(--focus);
-      outline-offset: 3px;
     }
 
     .contact-links svg {
-      /* SVG-Symbole übernehmen die Vordergrundfarbe der jeweiligen Schaltfläche. */
       width: 1.35rem;
       height: 1.35rem;
       fill: currentColor;
     }
 
+    /* Responsive Design */
+
     @media (max-width: 720px) {
-      /* Tablet und Smartphone: Einleitung und Karten werden einspaltig angeordnet. */
+
       .intro {
         grid-template-columns: 1fr;
         gap: 2.5rem;
@@ -895,8 +928,27 @@
       }
     }
 
+    @media (max-width: 560px) {
+
+      .webmap-frame {
+        height: 360px;
+      }
+
+      .cesium-map {
+        height: 420px;
+      }
+
+      .header-actions {
+        flex-wrap: wrap;
+      }
+
+      .tab-list {
+        border-radius: 18px;
+      }
+    }
+
     @media (max-width: 480px) {
-      /* Schmale Smartphones: kompaktere Ränder und Kopfzeile mit gestapelten Elementen. */
+
       .page {
         width: min(100% - 1.5rem, 1100px);
       }
@@ -910,10 +962,6 @@
       .header-actions {
         width: 100%;
         justify-content: space-between;
-      }
-
-      .header-actions {
-        gap: 0.5rem;
       }
 
       .tab-list {
@@ -932,7 +980,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      /* Animationen werden für Nutzer mit reduzierter Bewegungspräferenz minimiert. */
+
       html {
         scroll-behavior: auto;
       }
@@ -943,194 +991,687 @@
         transition-duration: 0.01ms !important;
       }
     }
+
   </style>
 </head>
+
 <body>
-  <!-- Seitencontainer begrenzt die Inhaltsbreite; die fixierte Kontaktleiste steht
-       bewusst außerhalb davon, damit sie beim Scrollen und Tabwechsel stehen bleibt. -->
-  <div class="page">
-    <!-- Gemeinsamer Kopfbereich: Wortmarke, Bereichsnavigation und Theme-Umschalter. -->
-    <header class="site-header">
-      <a class="wordmark" href="#start">Geoinformatik und Vermessung</a>
-      <div class="header-actions">
-        <!-- Die Tab-Buttons verweisen über aria-controls auf die zugehörigen Panels. -->
-        <div class="tab-list" role="tablist" aria-label="Hauptbereiche">
-          <button class="tab" id="tab-about" type="button" role="tab" aria-selected="true" aria-controls="panel-about" tabindex="0">About</button>
-          <button class="tab" id="tab-news" type="button" role="tab" aria-selected="false" aria-controls="panel-news" tabindex="-1">News</button>
-          <button class="tab" id="tab-projects" type="button" role="tab" aria-selected="false" aria-controls="panel-projects" tabindex="-1">Projects</button>
-        </div>
-        <!-- Das Symbol und die zugängliche Beschriftung werden durch JavaScript aktualisiert. -->
-        <button class="theme-toggle" type="button" aria-label="Dunkelmodus aktivieren" title="Dunkelmodus aktivieren">
-          <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+
+<div class="page">
+
+  <!-- Navigation -->
+
+  <header class="site-header">
+
+    <a class="wordmark" href="#start">
+      Geoinformatik und Vermessung
+    </a>
+
+    <div class="header-actions">
+
+      <div class="tab-list" role="tablist" aria-label="Hauptbereiche">
+
+        <button
+          class="tab"
+          id="tab-about"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-about"
+          tabindex="0">
+          About
         </button>
+
+        <button
+          class="tab"
+          id="tab-news"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-news"
+          tabindex="-1">
+          News
+        </button>
+
+        <button
+          class="tab"
+          id="tab-projects"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-projects"
+          tabindex="-1">
+          Projects
+        </button>
+
+        <!-- NEUER MENÜPUNKT -->
+
+        <button
+          class="tab"
+          id="tab-webkarten"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-webkarten"
+          tabindex="-1">
+          Webkarten
+        </button>
+
       </div>
-    </header>
 
-    <main id="start">
-      <!-- About ist das beim Laden sichtbare Panel; die anderen Panels tragen hidden. -->
-      <section class="tab-panel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" tabindex="0">
-        <!-- Persönliche Vorstellung mit Text und vorhandenem Profilbild. -->
-        <section class="intro" aria-labelledby="intro-title">
-          <div class="intro-copy">
-            <p class="eyebrow">Herzlich Willkommen</p>
-            <h1 id="intro-title">About me</h1>
-            <p>Hallo, ich bin Charlotte. Mich interessieren die Geschichten hinter Orten und Landschaften. Ich studiere Geoinformatik und Vermessung und beschäftige mich besonders gern mit Kartographie und räumlicher Analyse.</p>
-            <p>Hier sammle ich ein paar Stationen meines Weges und Dinge, die mich inspirieren. Schön, dass du vorbeischaust.</p>
-          </div>
-          <figure class="portrait">
-            <img src="assets/me.jpg" alt="Porträt von Charlotte">
-            <figcaption>This is me.</figcaption>
-          </figure>
-        </section>
+      <button
+        class="theme-toggle"
+        type="button"
+        aria-label="Dunkelmodus aktivieren"
+        title="Dunkelmodus aktivieren">
 
-        <!-- Bisherige Stationen bleiben als semantische Datentabelle erhalten. -->
-        <section class="section" aria-labelledby="stationen-title">
-          <div class="section-heading">
-            <div>
-              <p class="section-label">Ein kurzer Rückblick</p>
-              <h2 id="stationen-title">Sechs Stationen</h2>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Jahr</th>
-                  <th scope="col">Station</th>
-                  <th scope="col">Ort</th>
-                  <th scope="col">Stichwort</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>2020</td><td>Ein Anfang</td><td>München</td><td>Neugier</td></tr>
-                <tr><td>2021</td><td>Neue Perspektiven</td><td>Innsbruck</td><td>Entdecken</td></tr>
-                <tr><td>2024</td><td>Studium</td><td>New York</td><td>Grundlagen</td></tr>
-                <tr><td>2025</td><td>Erstes eigenes Projekt</td><td>London</td><td>Ausprobieren</td></tr>
-                <tr><td>2026</td><td>Zusammenarbeit</td><td>Hamburg</td><td>Austausch</td></tr>
-                <tr><td>Heute</td><td>Der nächste Schritt</td><td>Mainz</td><td>Weiterdenken</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
 
-        <!-- Bestehende externe Empfehlungen/Entdeckungen werden als Linkkarten gezeigt. -->
-        <section class="section" aria-labelledby="entdeckungen-title">
-          <div class="section-heading">
-            <div>
-              <p class="section-label">Zum Weiterklicken</p>
-              <h2 id="entdeckungen-title">Drei Entdeckungen</h2>
-            </div>
-            <p class="section-note">Orte, Ideen und Werkzeuge, zu denen ich gern zurückkehre.</p>
-          </div>
-          <div class="gallery">
-            <a class="card" href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer" aria-label="OpenStreetMap öffnen (externer Link)">
-              <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Weite Landschaft im warmen Abendlicht" loading="lazy">
-              <div class="card-copy">
-                <h3>Orte lesen</h3>
-                <p>Karten erzählen, wie wir unsere Welt sehen und gestalten.</p>
-                <span class="card-link">OpenStreetMap ↗</span>
-              </div>
-            </a>
-            <a class="card" href="https://www.nationalgeographic.com/" target="_blank" rel="noopener noreferrer" aria-label="National Geographic öffnen (externer Link)">
-              <img src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Bergsee und Landschaft mit Spiegelung" loading="lazy">
-              <div class="card-copy">
-                <h3>Draußen sein</h3>
-                <p>Neue Perspektiven finden — am liebsten Schritt für Schritt.</p>
-                <span class="card-link">National Geographic ↗</span>
-              </div>
-            </a>
-            <a class="card" href="https://www.wikimedia.org/" target="_blank" rel="noopener noreferrer" aria-label="Wikimedia öffnen (externer Link)">
-              <img src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Bücher und Notizen auf einem Tisch" loading="lazy">
-              <div class="card-copy">
-                <h3>Wissen teilen</h3>
-                <p>Gute Ideen werden besser, wenn viele daran mitarbeiten.</p>
-                <span class="card-link">Wikimedia ↗</span>
-              </div>
-            </a>
-          </div>
-        </section>
+      </button>
+
+    </div>
+  </header>
+
+  <main id="start">
+
+    <!-- ABOUT -->
+
+    <section
+      class="tab-panel"
+      id="panel-about"
+      role="tabpanel"
+      aria-labelledby="tab-about"
+      tabindex="0">
+
+      <section class="intro" aria-labelledby="intro-title">
+
+        <div class="intro-copy">
+
+          <p class="eyebrow">Herzlich Willkommen</p>
+
+          <h1 id="intro-title">About me</h1>
+
+          <p>
+            Hallo, ich bin Charlotte. Mich interessieren die Geschichten
+            hinter Orten und Landschaften. Ich studiere Geoinformatik
+            und Vermessung und beschäftige mich besonders gern mit
+            Kartographie und räumlicher Analyse.
+          </p>
+
+          <p>
+            Hier sammle ich ein paar Stationen meines Weges und Dinge,
+            die mich inspirieren. Schön, dass du vorbeischaust.
+          </p>
+
+        </div>
+
+        <figure class="portrait">
+
+          <img
+            src="assets/me.jpg"
+            alt="Porträt von Charlotte">
+
+          <figcaption>This is me.</figcaption>
+
+        </figure>
+
       </section>
 
-      <!-- Dieses Panel enthält nur den News-Container; Beiträge kommen aus assets/news.json. -->
-      <section class="tab-panel" id="panel-news" role="tabpanel" aria-labelledby="tab-news" tabindex="0" hidden>
-        <section class="section" aria-labelledby="news-title">
-          <div class="section-heading">
-            <div>
-              <p class="section-label">Aktuelles</p>
-              <h1 id="news-title">News</h1>
-            </div>
-            <p class="section-note">Einblicke in meine Lernfortschritte und persönliche Entwicklung.</p>
+      <!-- Stationen -->
+
+      <section class="section" aria-labelledby="stationen-title">
+
+        <div class="section-heading">
+
+          <div>
+
+            <p class="section-label">Ein kurzer Rückblick</p>
+
+            <h2 id="stationen-title">Sechs Stationen</h2>
+
           </div>
-          <!-- JavaScript ersetzt den Ladehinweis durch Karten oder eine passende Meldung. -->
-          <div class="content-grid" id="news-list" aria-live="polite" aria-busy="true">
-            <p>News werden geladen …</p>
-          </div>
-        </section>
+
+        </div>
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+                <th scope="col">Jahr</th>
+                <th scope="col">Station</th>
+                <th scope="col">Ort</th>
+                <th scope="col">Stichwort</th>
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              <tr>
+                <td>2020</td>
+                <td>Ein Anfang</td>
+                <td>München</td>
+                <td>Neugier</td>
+              </tr>
+
+              <tr>
+                <td>2021</td>
+                <td>Neue Perspektiven</td>
+                <td>Innsbruck</td>
+                <td>Entdecken</td>
+              </tr>
+
+              <tr>
+                <td>2024</td>
+                <td>Studium</td>
+                <td>New York</td>
+                <td>Grundlagen</td>
+              </tr>
+
+              <tr>
+                <td>2025</td>
+                <td>Erstes eigenes Projekt</td>
+                <td>London</td>
+                <td>Ausprobieren</td>
+              </tr>
+
+              <tr>
+                <td>2026</td>
+                <td>Zusammenarbeit</td>
+                <td>Hamburg</td>
+                <td>Austausch</td>
+              </tr>
+
+              <tr>
+                <td>Heute</td>
+                <td>Der nächste Schritt</td>
+                <td>Mainz</td>
+                <td>Weiterdenken</td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
       </section>
 
-      <!-- Projects bleiben unabhängig von News und About im eigenen Tab-Panel. -->
-      <section class="tab-panel" id="panel-projects" role="tabpanel" aria-labelledby="tab-projects" tabindex="0" hidden>
-        <section class="section" aria-labelledby="projects-title">
-          <div class="section-heading">
-            <div>
-              <p class="section-label">Ausgewählte Arbeiten</p>
-              <h1 id="projects-title">Projects</h1>
-            </div>
-            <p class="section-note">Aktuelle Projekte aus Kartographie, Fernerkundung und Vermessung.</p>
-          </div>
-          <div class="content-grid">
-            <!-- Projektkarte: Bilddateien liegen lokal in assets/ und können ersetzt werden. -->
-            <article class="content-card">
-              <img class="project-image" src="assets/projekt-webmap.png" alt="Interaktive Webkarte mit markierten Orten und Wegen" loading="lazy">
-              <h3>Interaktive Stadtkarte</h3>
-              <p>Eine Webkarte macht Haltestellen, Grünflächen und wichtige Orte einer Stadt sichtbar. Ebenen und Legende helfen dabei, räumliche Zusammenhänge schnell zu erfassen.</p>
-              <span class="placeholder-note">Webkarten-Projekt</span>
-            </article>
-            <!-- Projektkarte für die Fernerkundungs-Auswertung. -->
-            <article class="content-card">
-              <img class="project-image" src="assets/projekt-fernerkundung.png" alt="Satellitendaten und analysierte Landschaftsflächen" loading="lazy">
-              <h3>Grünflächen aus Satellitendaten</h3>
-              <p>Satellitenbilder werden ausgewertet, um Vegetation in einem Untersuchungsgebiet abzugrenzen. Die Ergebnisse zeigen, wie sich Grünflächen verteilen und wo Veränderungen auftreten.</p>
-              <span class="placeholder-note">Fernerkundungs-Analyse</span>
-            </article>
-            <!-- Projektkarte für Vermessung und Geländemodell. -->
-            <article class="content-card">
-              <img class="project-image" src="assets/projekt-geoinformatik.png" alt="Geoinformatik-Projekt mit digitaler Karte und räumlichen Daten" loading="lazy">
-              <h3>Präzise Geländevermessung</h3>
-              <p>GNSS- und Tachymetermessungen werden zu einem Lageplan mit Höheninformationen verarbeitet. Ein digitales Geländemodell veranschaulicht anschließend die Form des Areals.</p>
-              <span class="placeholder-note">Vermessung &amp; 3D-Modell</span>
-            </article>
-          </div>
-        </section>
-      </section>
-    </main>
+      <!-- Entdeckungen -->
 
-    <!-- Gemeinsamer Seitenabschluss, unabhängig vom aktuell aktiven Tab. -->
-    <footer class="site-footer">
-      <p>Mit Sorgfalt gestaltet · <a href="mailto:hallo@example.com">Kontakt</a></p>
-    </footer>
-  </div>
-  <!-- Fixierte Kontaktleiste außerhalb der Tab-Panels: bleibt auf jeder Ansicht sichtbar. -->
-  <nav class="contact-links" aria-label="Kontakt und soziale Netzwerke">
-    <!-- Platzhalter: DEIN-LINKEDIN-PROFIL durch die persönliche LinkedIn-Profil-URL ersetzen. -->
-    <a href="https://www.linkedin.com/in/DEIN-LINKEDIN-PROFIL/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn-Profil öffnen (Profil-Link ersetzen)" title="LinkedIn (Profil-Link ersetzen)">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M5.2 3.5a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2ZM3.4 9h3.7v11.6H3.4V9Zm5.9 0h3.5v1.6h.1a3.8 3.8 0 0 1 3.4-1.9c3.6 0 4.3 2.4 4.3 5.5v6.4h-3.7v-5.7c0-1.4 0-3.2-2-3.2s-2.3 1.5-2.3 3.1v5.8H9.3V9Z"/>
-      </svg>
-    </a>
-    <a href="https://github.com/Charlotte4220" target="_blank" rel="noopener noreferrer" aria-label="GitHub-Profil von Charlotte4220 öffnen" title="GitHub">
-      <!-- Dekoratives Inline-SVG; der Linktext für Screenreader steht im aria-label. -->
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.76-.24.76-.54v-2.1c-3.1.68-3.76-1.31-3.76-1.31-.5-1.29-1.24-1.63-1.24-1.63-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.87 2.04 3.3 1.45.1-.72.4-1.21.7-1.49-2.48-.28-5.09-1.24-5.09-5.53 0-1.22.44-2.22 1.16-3-.12-.29-.5-1.43.11-2.98 0 0 .95-.3 3.08 1.15a10.7 10.7 0 0 1 5.6 0c2.13-1.45 3.07-1.15 3.07-1.15.61 1.55.23 2.69.12 2.98.72.78 1.15 1.78 1.15 3 0 4.3-2.61 5.25-5.1 5.52.4.35.76 1.02.76 2.06v3.06c0 .3.2.65.77.54A11.2 11.2 0 0 0 12 .8Z"/>
-      </svg>
-    </a>
-    <!-- Platzhalter: hallo@example.com durch die eigene E-Mail-Adresse ersetzen. -->
-    <a href="mailto:hallo@example.com" aria-label="E-Mail an hallo@example.com schreiben (Adresse ersetzen)" title="E-Mail (Adresse ersetzen)">
-      <!-- E-Mail-Umschlag als SVG-Symbol, für Screenreader dekorativ ausgeblendet. -->
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M3.5 5h17A2.5 2.5 0 0 1 23 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-17A2.5 2.5 0 0 1 1 16.5v-9A2.5 2.5 0 0 1 3.5 5Zm0 2a.5.5 0 0 0-.31.11L12 13.8l8.81-6.69A.5.5 0 0 0 20.5 7h-17Zm17 10a.5.5 0 0 0 .5-.5V9.57l-8.4 6.38a1 1 0 0 1-1.2 0L3 9.57v6.93a.5.5 0 0 0 .5.5h17Z"/>
-      </svg>
-    </a>
-  </nav>
+      <section class="section" aria-labelledby="entdeckungen-title">
+
+        <div class="section-heading">
+
+          <div>
+
+            <p class="section-label">Zum Weiterklicken</p>
+
+            <h2 id="entdeckungen-title">Drei Entdeckungen</h2>
+
+          </div>
+
+          <p class="section-note">
+            Orte, Ideen und Werkzeuge, zu denen ich gern zurückkehre.
+          </p>
+
+        </div>
+
+        <div class="gallery">
+
+          <a
+            class="card"
+            href="https://www.openstreetmap.org/"
+            target="_blank"
+            rel="noopener noreferrer">
+
+            <img
+              src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&amp;fit=crop&amp;w=800&amp;q=80"
+              alt="Weite Landschaft"
+              loading="lazy">
+
+            <div class="card-copy">
+
+              <h3>Orte lesen</h3>
+
+              <p>
+                Karten erzählen, wie wir unsere Welt sehen und gestalten.
+              </p>
+
+              <span class="card-link">OpenStreetMap ↗</span>
+
+            </div>
+
+          </a>
+
+          <a
+            class="card"
+            href="https://www.nationalgeographic.com/"
+            target="_blank"
+            rel="noopener noreferrer">
+
+            <img
+              src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&amp;fit=crop&amp;w=800&amp;q=80"
+              alt="Bergsee und Landschaft"
+              loading="lazy">
+
+            <div class="card-copy">
+
+              <h3>Draußen sein</h3>
+
+              <p>
+                Neue Perspektiven finden — am liebsten Schritt für Schritt.
+              </p>
+
+              <span class="card-link">National Geographic ↗</span>
+
+            </div>
+
+          </a>
+
+          <a
+            class="card"
+            href="https://www.wikimedia.org/"
+            target="_blank"
+            rel="noopener noreferrer">
+
+            <img
+              src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&amp;fit=crop&amp;w=800&amp;q=80"
+              alt="Bücher und Notizen"
+              loading="lazy">
+
+            <div class="card-copy">
+
+              <h3>Wissen teilen</h3>
+
+              <p>
+                Gute Ideen werden besser, wenn viele daran mitarbeiten.
+              </p>
+
+              <span class="card-link">Wikimedia ↗</span>
+
+            </div>
+
+          </a>
+
+        </div>
+
+      </section>
+
+    </section>
+
+    <!-- NEWS -->
+
+    <section
+      class="tab-panel"
+      id="panel-news"
+      role="tabpanel"
+      aria-labelledby="tab-news"
+      tabindex="0"
+      hidden>
+
+      <section class="section" aria-labelledby="news-title">
+
+        <div class="section-heading">
+
+          <div>
+
+            <p class="section-label">Aktuelles</p>
+
+            <h1 id="news-title">News</h1>
+
+          </div>
+
+          <p class="section-note">
+            Einblicke in meine Lernfortschritte und persönliche Entwicklung.
+          </p>
+
+        </div>
+
+        <div
+          class="content-grid"
+          id="news-list"
+          aria-live="polite"
+          aria-busy="true">
+
+          <p>News werden geladen …</p>
+
+        </div>
+
+      </section>
+
+    </section>
+
+    <!-- PROJECTS -->
+
+    <section
+      class="tab-panel"
+      id="panel-projects"
+      role="tabpanel"
+      aria-labelledby="tab-projects"
+      tabindex="0"
+      hidden>
+
+      <section class="section" aria-labelledby="projects-title">
+
+        <div class="section-heading">
+
+          <div>
+
+            <p class="section-label">Ausgewählte Arbeiten</p>
+
+            <h1 id="projects-title">Projects</h1>
+
+          </div>
+
+          <p class="section-note">
+            Aktuelle Projekte aus Kartographie,
+            Fernerkundung und Vermessung.
+          </p>
+
+        </div>
+
+        <div class="content-grid">
+
+          <article class="content-card">
+
+            <img
+              class="project-image"
+              src="assets/projekt-webmap.png"
+              alt="Interaktive Webkarte"
+              loading="lazy">
+
+            <h3>Interaktive Stadtkarte</h3>
+
+            <p>
+              Eine Webkarte macht Haltestellen, Grünflächen und
+              wichtige Orte einer Stadt sichtbar. Ebenen und Legende
+              helfen dabei, räumliche Zusammenhänge schnell zu erfassen.
+            </p>
+
+            <span class="placeholder-note">Webkarten-Projekt</span>
+
+          </article>
+
+          <article class="content-card">
+
+            <img
+              class="project-image"
+              src="assets/projekt-fernerkundung.png"
+              alt="Satellitendaten"
+              loading="lazy">
+
+            <h3>Grünflächen aus Satellitendaten</h3>
+
+            <p>
+              Satellitenbilder werden ausgewertet, um Vegetation in einem
+              Untersuchungsgebiet abzugrenzen. Die Ergebnisse zeigen,
+              wie sich Grünflächen verteilen und wo Veränderungen auftreten.
+            </p>
+
+            <span class="placeholder-note">Fernerkundungs-Analyse</span>
+
+          </article>
+
+          <article class="content-card">
+
+            <img
+              class="project-image"
+              src="assets/projekt-geoinformatik.png"
+              alt="Geoinformatik-Projekt"
+              loading="lazy">
+
+            <h3>Präzise Geländevermessung</h3>
+
+            <p>
+              GNSS- und Tachymetermessungen werden zu einem Lageplan mit
+              Höheninformationen verarbeitet. Ein digitales Geländemodell
+              veranschaulicht anschließend die Form des Areals.
+            </p>
+
+            <span class="placeholder-note">
+              Vermessung &amp; 3D-Modell
+            </span>
+
+          </article>
+
+        </div>
+
+      </section>
+
+    </section>
+
+    <!-- ======================================== -->
+    <!-- NEU: WEBKARTEN – GEOINFORMATIK ÜBUNG 3   -->
+    <!-- ======================================== -->
+
+    <section
+      class="tab-panel"
+      id="panel-webkarten"
+      role="tabpanel"
+      aria-labelledby="tab-webkarten"
+      tabindex="0"
+      hidden>
+
+      <section class="section" aria-labelledby="webkarten-title">
+
+        <div class="section-heading">
+
+          <div>
+
+            <p class="section-label">
+              Geoinformatik 2 · Übung 3
+            </p>
+
+            <h1 id="webkarten-title">Webkarten</h1>
+
+          </div>
+
+          <p class="section-note">
+            Sechs interaktive Karten: vier mit Python, Folium und GeoJSON,
+            eine 3D-Gebäudekarte mit Cesium sowie eine Kepler.gl-Visualisierung.
+          </p>
+
+        </div>
+
+        <div class="webmap-list">
+
+          <!-- KARTE 1: BASISKARTE -->
+
+          <article class="webmap-card">
+
+            <h3>1. Basiskarte</h3>
+
+            <p>
+              Interaktive Grundkarte mit OpenStreetMap.
+            </p>
+
+            <iframe
+              class="webmap-frame"
+              src="maps/map_1_basiskarte.html"
+              title="Basiskarte – interaktive Folium-Karte"
+              loading="lazy"
+              allowfullscreen>
+            </iframe>
+
+          </article>
+
+          <!-- KARTE 2: PUNKTE -->
+
+          <article class="webmap-card">
+
+            <h3>2. Punkte (Marker)</h3>
+
+            <p>
+              Ausgewählte Städte mit Markern,
+              Tooltips und Popups.
+            </p>
+
+            <iframe
+              class="webmap-frame"
+              src="maps/map_2_punkte.html"
+              title="Punkte (Marker) – interaktive Folium-Karte"
+              loading="lazy"
+              allowfullscreen>
+            </iframe>
+
+          </article>
+
+          <!-- KARTE 3: REISEROUTE -->
+
+          <article class="webmap-card">
+
+            <h3>3. Reiseroute durch Schottland</h3>
+
+            <p>
+              Mehrere Reisestationen, verbunden
+              durch eine Polyline.
+            </p>
+
+            <iframe
+              class="webmap-frame"
+              src="maps/map_3_reiseroute.html"
+              title="Reiseroute durch Schottland"
+              loading="lazy"
+              allowfullscreen>
+            </iframe>
+
+          </article>
+
+          <!-- KARTE 4: GEOJSON -->
+
+          <article class="webmap-card">
+
+            <h3>4. Flächen (GeoJSON)</h3>
+
+            <p>
+              Weltkarte mit hervorgehobenen Ländern
+              und interaktiven Flächen.
+            </p>
+
+            <iframe
+              class="webmap-frame"
+              src="maps/map_4_flaechen_online.html"
+              title="Flächen (GeoJSON) – interaktive Folium-Karte"
+              loading="lazy"
+              allowfullscreen>
+            </iframe>
+
+          </article>
+
+          <article class="webmap-card">
+
+            <h3>5. 3D-Gebäude Deutschland</h3>
+
+            <p>
+              Interaktive 3D-Gebäudeansicht auf Basis des LoD2-Gebäudelayers.
+              Datenquelle:
+              <a href="https://basemap.de/produkte-und-dienste/3d/" target="_blank" rel="noopener noreferrer">basemap.de – 3D</a>.
+            </p>
+
+            <div
+              class="cesium-map"
+              id="cesium-container"
+              role="region"
+              aria-label="Interaktive 3D-Gebäudekarte Deutschland">
+            </div>
+            <p class="cesium-status" id="cesium-status" role="status" aria-live="polite">
+              Öffne den Reiter „Webkarten“, um die 3D-Karte zu laden.
+            </p>
+
+          </article>
+
+          <article class="webmap-card">
+
+            <h3>6. New York City Population by Census Tract</h3>
+
+            <p>
+              Interaktive Visualisierung der Bevölkerungsverteilung nach Census Tracts
+              mit Kepler.gl.
+            </p>
+
+            <iframe
+              class="webmap-frame"
+              src="assets/kepler.gl.html"
+              title="New York City Population by Census Tract – Kepler.gl-Karte"
+              loading="lazy"
+              allowfullscreen>
+            </iframe>
+
+          </article>
+
+        </div>
+
+      </section>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+
+  <footer class="site-footer">
+
+    <p>
+      Mit Sorgfalt gestaltet ·
+      <a href="mailto:hallo@example.com">Kontakt</a>
+    </p>
+
+  </footer>
+
+</div>
+
+<!-- Kontakt und Social Media -->
+
+<nav class="contact-links" aria-label="Kontakt und soziale Netzwerke">
+
+  <a
+    href="https://www.linkedin.com/in/DEIN-LINKEDIN-PROFIL/"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="LinkedIn-Profil öffnen"
+    title="LinkedIn">
+
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+
+      <path d="M5.2 3.5a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2ZM3.4 9h3.7v11.6H3.4V9Zm5.9 0h3.5v1.6h.1a3.8 3.8 0 0 1 3.4-1.9c3.6 0 4.3 2.4 4.3 5.5v6.4h-3.7v-5.7c0-1.4 0-3.2-2-3.2s-2.3 1.5-2.3 3.1v5.8H9.3V9Z"/>
+
+    </svg>
+
+  </a>
+
+  <a
+    href="https://github.com/Charlotte4220"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="GitHub-Profil öffnen"
+    title="GitHub">
+
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+
+      <path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.76-.24.76-.54v-2.1c-3.1.68-3.76-1.31-3.76-1.31-.5-1.29-1.24-1.63-1.24-1.63-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.87 2.04 3.3 1.45.1-.72.4-1.21.7-1.49-2.48-.28-5.09-1.24-5.09-5.53 0-1.22.44-2.22 1.16-3-.12-.29-.5-1.43.11-2.98 0 0 .95-.3 3.08 1.15a10.7 10.7 0 0 1 5.6 0c2.13-1.45 3.07-1.15 3.07-1.15.61 1.55.23 2.69.12 2.98.72.78 1.15 1.78 1.15 3 0 4.3-2.61 5.25-5.1 5.52.4.35.76 1.02.76 2.06v3.06c0 .3.2.65.77.54A11.2 11.2 0 0 0 12 .8Z"/>
+
+    </svg>
+
+  </a>
+
+  <a
+    href="mailto:hallo@example.com"
+    aria-label="E-Mail schreiben"
+    title="E-Mail">
+
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+
+      <path d="M3.5 5h17A2.5 2.5 0 0 1 23 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-17A2.5 2.5 0 0 1 1 16.5v-9A2.5 2.5 0 0 1 3.5 5Zm0 2a.5.5 0 0 0-.31.11L12 13.8l8.81-6.69A.5.5 0 0 0 20.5 7h-17Zm17 10a.5.5 0 0 0 .5-.5V9.57l-8.4 6.38a1 1 0 0 1-1.2 0L3 9.57v6.93a.5.5 0 0 0 .5.5h17Z"/>
+
+    </svg>
+
+  </a>
+
+</nav>
+
 </body>
 </html>
